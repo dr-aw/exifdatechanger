@@ -16,12 +16,13 @@ import (
 )
 
 var mu sync.Mutex
-var counter int
+var counter, errors int
 
 func processFile(filePath string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	if err := updateFileDate(filePath); err != nil {
 		log.Printf("Failed to update file %s: %v", filePath, err)
+		errors++
 	} else {
 		mu.Lock()
 		counter++
@@ -61,7 +62,11 @@ func main() {
 
 	wg.Wait()
 	timeTotal := time.Since(currTime)
+	fmt.Println("________________________________________")
 	fmt.Printf("Processing %d files completed (%v).\n\a", counter, timeTotal)
+	if errors != 0 {
+		fmt.Printf("\u001B[31mError processing %d files.\u001B[0m\n\a", errors)
+	}
 	// Wait for user input before closing
 	fmt.Println("Press Enter to exit...")
 	fmt.Scanln() // Wait for user to press Enter
