@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,15 +16,21 @@ import (
 )
 
 var mu sync.Mutex
+var counter int
 
-func processFile(filePath string, count *int, wg *sync.WaitGroup) {
+func processFile(filePath string, wg *sync.WaitGroup) {
 	defer wg.Done()
-	if err := updateFileDate(filePath, count); err != nil {
+	if err := updateFileDate(filePath); err != nil {
 		log.Printf("Failed to update file %s: %v", filePath, err)
+	} else {
+		mu.Lock()
+		counter++
+		mu.Unlock()
 	}
 }
 
 func main() {
+	currTime := time.Now()
 	// Get the current directory
 	currentPath, err := os.Getwd()
 	if err != nil {
@@ -39,22 +46,22 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-	var count int
 	// Go over files
 	for _, file := range files {
-		ext := filepath.Ext(file)
+		ext := strings.ToLower(filepath.Ext(file))
 		if ext == ".jpeg" || ext == ".png" || ext == ".jpg" {
 			wg.Add(1)
-			go processFile(file, &count, &wg)
+			go processFile(file, &wg)
 		}
 	}
 
 	wg.Wait()
-	fmt.Printf("Processing %d files completed.\n\a", count)
+	timeTotal := time.Since(currTime)
+	fmt.Printf("Processing %d files completed (%v).\n\a", counter, timeTotal)
 }
 
 // Date-update function
-func updateFileDate(filePath string, count *int) error {
+func updateFileDate(filePath string) error {
 	// Open file
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -73,8 +80,5 @@ func updateFileDate(filePath string, count *int) error {
 	if err != nil {
 		return err
 	}
-	mu.Lock()
-	*count++
-	mu.Unlock()
 	return os.Chtimes(filePath, time.Now(), date)
 }
