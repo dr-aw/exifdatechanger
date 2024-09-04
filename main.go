@@ -31,6 +31,9 @@ func processFile(filePath string, wg *sync.WaitGroup) {
 
 func main() {
 	currTime := time.Now()
+	//Clear the terminal before processing
+	clearConsole()
+
 	// Get the current directory
 	currentPath, err := os.Getwd()
 	if err != nil {
@@ -46,6 +49,7 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
+
 	// Go over files
 	for _, file := range files {
 		ext := strings.ToLower(filepath.Ext(file))
@@ -58,6 +62,9 @@ func main() {
 	wg.Wait()
 	timeTotal := time.Since(currTime)
 	fmt.Printf("Processing %d files completed (%v).\n\a", counter, timeTotal)
+	// Wait for user input before closing
+	fmt.Println("Press Enter to exit...")
+	fmt.Scanln() // Wait for user to press Enter
 }
 
 // Date-update function
