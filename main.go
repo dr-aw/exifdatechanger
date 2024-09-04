@@ -8,13 +8,21 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/rwcarlsen/goexif/exif"
 )
 
+func processFile(filePath string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	if err := updateFileDate(filePath); err != nil {
+		log.Printf("Failed to update file %s: %v", filePath, err)
+	}
+}
+
 func main() {
-	// Get current path
+	// Get the current directory
 	currentPath, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -22,48 +30,46 @@ func main() {
 
 	fmt.Println("Current directory:", currentPath)
 
-	// Get file list
+	// Get the file list
 	files, err := filepath.Glob(filepath.Join(currentPath, "*"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Go through every file in the directory
+	var wg sync.WaitGroup
+
+	// Go over files
 	for _, file := range files {
 		ext := filepath.Ext(file)
-		if ext == ".jpeg" || ext == ".jpg" || ext == ".png" {
-			fmt.Printf("Processing file: %s\n", file)
-
-			// Open file
-			f, err := os.Open(file)
-			if err != nil {
-				log.Printf("Error opening file %s: %v\n", file, err)
-				continue
-			}
-
-			// Get EXIFs
-			x, err := exif.Decode(f)
-			f.Close() // Закрываем файл, так как он больше не нужен
-			if err != nil {
-				log.Printf("Error decoding EXIF data from file %s: %v\n", file, err)
-				continue
-			}
-
-			// Get a shot date
-			tm, err := x.DateTime()
-			if err != nil {
-				log.Printf("No DateTime found in EXIF for file %s: %v\n", file, err)
-				continue
-			}
-
-			// Set the shot date as date of changing file
-			err = os.Chtimes(file, time.Now(), tm)
-			if err != nil {
-				log.Printf("Error setting modification time for file %s: %v\n", file, err)
-				continue
-			}
-
-			fmt.Printf("Set modification time to %v for file %s\n", tm, file)
+		if ext == ".jpeg" || ext == ".png" || ext == ".jpg" {
+			wg.Add(1)
+			go processFile(file, &wg)
 		}
 	}
+
+	wg.Wait()
+	fmt.Println("Processing completed.")
+}
+
+// Date-update function
+func updateFileDate(filePath string) error {
+	// Open file
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Get EXIF
+	x, err := exif.Decode(f)
+	if err != nil {
+		return err
+	}
+
+	// Get shooting date
+	date, err := x.DateTime()
+	if err != nil {
+		return err
+	}
+	return os.Chtimes(filePath, time.Now(), date)
 }
