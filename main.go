@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	// Получаем текущую директорию
+	// Get current path
 	currentPath, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -22,26 +22,26 @@ func main() {
 
 	fmt.Println("Current directory:", currentPath)
 
-	// Получаем список файлов в папке
+	// Get file list
 	files, err := filepath.Glob(filepath.Join(currentPath, "*"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Проходим по каждому файлу в папке
+	// Go through every file in the directory
 	for _, file := range files {
 		ext := filepath.Ext(file)
 		if ext == ".jpeg" || ext == ".jpg" || ext == ".png" {
 			fmt.Printf("Processing file: %s\n", file)
 
-			// Открываем файл
+			// Open file
 			f, err := os.Open(file)
 			if err != nil {
 				log.Printf("Error opening file %s: %v\n", file, err)
 				continue
 			}
 
-			// Получаем метаданные EXIF
+			// Get EXIFs
 			x, err := exif.Decode(f)
 			f.Close() // Закрываем файл, так как он больше не нужен
 			if err != nil {
@@ -49,14 +49,14 @@ func main() {
 				continue
 			}
 
-			// Извлекаем дату съёмки
+			// Get a shot date
 			tm, err := x.DateTime()
 			if err != nil {
 				log.Printf("No DateTime found in EXIF for file %s: %v\n", file, err)
 				continue
 			}
 
-			// Устанавливаем дату изменения файла на дату съёмки
+			// Set the shot date as date of changing file
 			err = os.Chtimes(file, time.Now(), tm)
 			if err != nil {
 				log.Printf("Error setting modification time for file %s: %v\n", file, err)
