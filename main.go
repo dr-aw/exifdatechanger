@@ -14,9 +14,11 @@ import (
 	"github.com/rwcarlsen/goexif/exif"
 )
 
-func processFile(filePath string, wg *sync.WaitGroup) {
+var mu sync.Mutex
+
+func processFile(filePath string, count *int, wg *sync.WaitGroup) {
 	defer wg.Done()
-	if err := updateFileDate(filePath); err != nil {
+	if err := updateFileDate(filePath, count); err != nil {
 		log.Printf("Failed to update file %s: %v", filePath, err)
 	}
 }
@@ -37,22 +39,22 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-
+	var count int
 	// Go over files
 	for _, file := range files {
 		ext := filepath.Ext(file)
 		if ext == ".jpeg" || ext == ".png" || ext == ".jpg" {
 			wg.Add(1)
-			go processFile(file, &wg)
+			go processFile(file, &count, &wg)
 		}
 	}
 
 	wg.Wait()
-	fmt.Println("Processing completed.")
+	fmt.Printf("Processing %d files completed.\n\a", count)
 }
 
 // Date-update function
-func updateFileDate(filePath string) error {
+func updateFileDate(filePath string, count *int) error {
 	// Open file
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -71,5 +73,8 @@ func updateFileDate(filePath string) error {
 	if err != nil {
 		return err
 	}
+	mu.Lock()
+	*count++
+	mu.Unlock()
 	return os.Chtimes(filePath, time.Now(), date)
 }
